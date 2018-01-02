@@ -13,7 +13,7 @@ static unsigned long rx_symbol_max_us;
 static volatile unsigned long rx_last_code = 0;
 static volatile unsigned int rx_last_length = 0;
 
-void on_rx_change() {
+static void on_rx_change() {
 	// micros() on last posedge
 	static unsigned long last_posedge = 0;
 	
@@ -61,11 +61,11 @@ void on_rx_change() {
 }
 
 void FourThreeThree_rx_begin(int pin,
-                             unsigned long zero_min_us=200ul,
-                             unsigned long zero_max_us=400ul,
-                             unsigned long one_min_us=800ul,
-                             unsigned long one_max_us=1100ul,
-                             unsigned long symbol_max_us=1500ul) {
+                             unsigned long zero_min_us,
+                             unsigned long zero_max_us,
+                             unsigned long one_min_us,
+                             unsigned long one_max_us,
+                             unsigned long symbol_max_us) {
 	rx_pin = pin;
 	rx_zero_min_us = zero_min_us;
 	rx_zero_max_us = zero_max_us;
