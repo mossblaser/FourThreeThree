@@ -2,6 +2,10 @@
 
 #include "FourThreeThree.h"
 
+////////////////////////////////////////////////////////////////////////////////
+// RX
+////////////////////////////////////////////////////////////////////////////////
+
 static int rx_pin;
 
 static unsigned long rx_zero_min_us;
@@ -100,4 +104,130 @@ bool FourThreeThree_rx(unsigned long *code, unsigned int *length) {
 
 void FourThreeThree_rx_end() {
 	detachInterrupt(digitalPinToInterrupt(rx_pin));
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// TX
+////////////////////////////////////////////////////////////////////////////////
+
+static int tx_pin;
+static unsigned long tx_zero_on_us;
+static unsigned long tx_zero_off_us;
+static unsigned long tx_one_on_us;
+static unsigned long tx_one_off_us;
+static unsigned long tx_inter_code_gap_ms;
+static unsigned int tx_repeats;
+
+// Code being transmitted
+static unsigned int tx_code = 0;
+static unsigned int tx_code_length = 0;
+
+// Current bit being transmitted
+static unsigned int tx_cur_bit_num = 0;
+
+// How many repeats of the current code remain
+static unsigned int tx_repeats_remaining = 0;
+
+// Next transition time (microseconds)
+unsigned long tx_next_transition_us;
+
+// Next repeat start time (milliseconds)
+unsigned long tx_next_repeat_ms;
+
+void FourThreeThree_tx_begin(int pin,
+                             unsigned long zero_on_us,
+                             unsigned long zero_off_us,
+                             unsigned long one_on_us,
+                             unsigned long one_off_us,
+                             unsigned long inter_code_gap_ms,
+                             unsigned int repeats) {
+	tx_pin = pin;
+	tx_zero_on_us = zero_on_us;
+	tx_zero_off_us = zero_off_us;
+	tx_one_on_us = one_on_us;
+	tx_one_off_us = one_off_us;
+	tx_inter_code_gap_ms = inter_code_gap_ms;
+	tx_repeats = repeats;
+	
+	pinMode(tx_pin, OUTPUT);
+	digitalWrite(tx_pin, LOW);
+	
+	tx_code = 0;
+	tx_code_length = 0;
+	tx_cur_bit_num = 0;
+	tx_repeats_remaining = 0;
+}
+
+static bool tx_cur_bit() {
+	return (tx_code >> tx_cur_bit_num) & 1;
+}
+
+bool FourThreeThree_tx(unsigned long code, unsigned int length) {
+	if (tx_repeats_remaining) {
+		// TX still in progress, reject!
+		return false;
+	}
+	
+	tx_code = code;
+	tx_code_length = length;
+	
+	// Start the transmission
+	tx_cur_bit_num = tx_code_length; // One past the end means "we're mid repeat"
+	tx_repeats_remaining = tx_repeats;
+	tx_next_repeat_ms = millis(); // Now!
+	
+	return true;
+}
+
+void FourThreeThree_tx_loop() {
+	if (!tx_repeats_remaining) {
+		// Nothing to do!
+		return;
+	}
+	
+	bool cur_state = digitalRead(tx_pin);
+	unsigned long now = micros();
+	
+	// NB: This timing code will bugger up when transitions occur across timer
+	// wrapping boundaries... but who cares?
+	if (cur_state) {
+		// We're currently mid-bit!
+		if (now >= tx_next_transition_us) {
+			// Negative edge is due!
+			digitalWrite(tx_pin, LOW);
+			tx_next_transition_us += tx_cur_bit() ? tx_one_off_us : tx_zero_off_us;
+		}
+	} else {
+		// We're coming towards the end of a bit/repeat delay
+		
+		// Deal with inter-repeat gaps
+		if (tx_cur_bit_num == tx_code_length) {
+			// We're currently in a repeat delay
+			if (millis() < tx_next_repeat_ms) {
+				// The delay is still counting down... do nothing for now.
+				return;
+			} else {
+				// Delay over, transition now!
+				tx_next_transition_us = now;
+			}
+		}
+		
+		// If we reach here we are potentially due to start the next bit!
+		if (now >= tx_next_transition_us) {
+			if (tx_cur_bit_num) {
+				// Start the next bit
+				tx_cur_bit_num--;
+				digitalWrite(tx_pin, HIGH);
+				tx_next_transition_us += tx_cur_bit() ? tx_one_on_us : tx_zero_on_us;
+			} else {
+				// We've just finished the last bit of the code, time to pause until
+				// the next repeat
+				tx_repeats_remaining--;
+				
+				tx_cur_bit_num = tx_code_length;
+				tx_next_repeat_ms = millis() + tx_inter_code_gap_ms;
+			}
+		}
+	}
 }

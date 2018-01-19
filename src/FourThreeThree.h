@@ -41,4 +41,35 @@ bool FourThreeThree_rx(unsigned long *code, unsigned int *length);
  */
 void FourThreeThree_rx_end();
 
+
+/**
+ * Prepare a pin for use in transmitting 433 MHz signals.
+ *
+ * @param pin The pin the 433 MHz radio receiver is connected to.
+ * @param zero_on_us Duration of positive pulse when sending a 'zero' symbol.
+ * @param zero_off_us Duration of negative pulse when sending a 'zero' symbol.
+ * @param one_on_us Duration of positive pulse when sending a 'one' symbol.
+ * @param one_off_us Duration of negative pulse when sending a 'one' symbol.
+ * @param inter_code_gap_ms Duration of pause between adjacent codes.
+ * @param repeats Number of repetitions to send of a code.
+ */
+void FourThreeThree_tx_begin(int pin,
+                             unsigned long zero_on_us = 170ul,
+                             unsigned long zero_off_us = 600ul,
+                             unsigned long one_on_us = 550ul,
+                             unsigned long one_off_us = 220ul,
+                             unsigned long inter_code_gap_ms = 6,
+                             unsigned int repeats = 20);
+
+/**
+ * Transmit a code. Returns 'true' if transmission has started, 'false' if the
+ * transmitter is stlil busy with another code.
+ */
+bool FourThreeThree_tx(unsigned long code, unsigned int length);
+
+/**
+ * Call frequently while using the TX functions.
+ */
+void FourThreeThree_tx_loop();
+
 #endif
