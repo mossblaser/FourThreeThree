@@ -2,8 +2,8 @@
  * A minimal 433 MHz radio library designed specifically to handle:
  *
  * * Receiving codes transmitted by Kerui wireless PIRs
- * * Transmitting codes used by cheap remote-controlled socket adapters (coming
- *   soon)
+ * * Transmitting codes used by cheap 'Mercury' remote-controlled socket
+ *   adapters
  */
 
 #ifndef FOURTHREETHREE_H
@@ -28,18 +28,13 @@ void FourThreeThree_rx_begin(int pin,
 
 /**
  * Get a received code. Returns true if a code has been received and sets code
- * and length.
+ * and length. Call regularly.
  *
  * Length gives the number of significant bits in the code. Code is always a
  * single unsigned long and any bits which don't fit in its length are
  * unavailable.
  */
 bool FourThreeThree_rx(unsigned long *code, unsigned int *length);
-
-/**
- * Stop listening for 433 MHz transmissions
- */
-void FourThreeThree_rx_end();
 
 
 /**

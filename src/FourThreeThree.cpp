@@ -82,28 +82,29 @@ void FourThreeThree_rx_begin(int pin,
 	rx_last_length = 0;
 	
 	pinMode(rx_pin, INPUT);
-	attachInterrupt(digitalPinToInterrupt(rx_pin), on_rx_change, CHANGE);
 }
 
 bool FourThreeThree_rx(unsigned long *code, unsigned int *length) {
-	noInterrupts();
+	// Watch for incoming signals
+	static bool last_state;
+	bool cur_state = digitalRead(rx_pin);
+	if (last_state != cur_state) {
+		on_rx_change();
+		last_state = cur_state;
+	}
 	
-	bool valid = false;
+	// Report if a signal has been received.
 	if (rx_last_length != 0) {
-		valid = true;
 		*code = rx_last_code;
 		*length = rx_last_length;
 		
 		rx_last_code = 0;
 		rx_last_length = 0;
+		
+		return true;
+	} else {
+		return false;
 	}
-	
-	interrupts();
-	return valid;
-}
-
-void FourThreeThree_rx_end() {
-	detachInterrupt(digitalPinToInterrupt(rx_pin));
 }
 
 
